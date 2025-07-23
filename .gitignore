@@ -1,0 +1,234 @@
+# gitignore para sa HealthRadar Disease Management System
+# see https://help.github.com/articles/ignoring-files/ for more about ignoring files
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+/coverage
+.nyc_output
+coverage/
+*.lcov
+junit.xml
+
+# Next.js
+/.next/
+/out/
+.next/
+out/
+
+# Production builds
+/build
+build/
+dist/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Misc
+.DS_Store
+*.pem
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (Firebase config, API keys, etc.)
+.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Firebase (important for HealthRadar project)
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebaserc
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/extensions.json
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Logs
+logs
+*.log
+
+# Optional npm cache directory
+.npm
+
+# Turbo
+.turbo
+
+# Local development
+.local
+.runtime
+
+# Backup files
+*.backup
+*.bak
+*.tmp
+
+# Package manager lock files (uncomment based on preference)
+# package-lock.json  # npm
+# yarn.lock          # yarn
+# pnpm-lock.yaml     # pnpm
+
+# CSV data files (uncomment if you want to ignore uploaded disease data)
+# *.csv
+# uploads/
+# data/
+# example_disease_data.csv
+
+# PWA files
+**/sw.js
+**/workbox-*.js
+**/worker-*.js
+
+# Sentry
+.sentryclirc
+
+# Testing frameworks
+cypress/videos/
+cypress/screenshots/
+
+# Storybook
+storybook-static
+
+# Local Netlify folder
+.netlify
+
+# OS specific files
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# Local History for Visual Studio Code
+.history/
+
+# Build artifacts
+*.tgz
+*.tar.gz
+
+# Database files (if any local db used)
+*.sqlite
+*.sqlite3
+*.db
+
+# HealthRadar specific files
+# API keys and sensitive config
+.env.production
+.env.staging
+firebase-adminsdk-*.json
+service-account-key.json
+
+# Disease data backups (optional - uncomment if you want to ignore)
+# disease_data_backup/
+# exported_data/
+# data_exports/
+
+# User uploaded files (if stored locally)
+uploads/
+temp_uploads/
+user_data/
+
+# AI analysis cache
+ai_analysis_cache/
+openrouter_cache/
+
+# Development and testing files
+test_data/
+mock_data/
+sample_disease_data.csv
+test_uploads/
+
+# Documentation drafts
+docs/drafts/
+*.draft.md
+
+# Deployment specific
+deployment/
+scripts/deploy/
+.deployment
+
+# IDE specific for HealthRadar development
+.vscode/settings.json
+.vscode/launch.json
+.idea/workspace.xml
+.idea/tasks.xml
+
+# Temporary files from development
+*.tmp.tsx
+*.backup.ts
+*.old.js
+
+# Performance monitoring
+performance_logs/
+monitoring/
+
+# Security scan results
+security_reports/
+vulnerability_scans/

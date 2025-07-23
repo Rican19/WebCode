@@ -1,0 +1,40 @@
+{
+  "name": "healthradar-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@heroui/react": "^2.7.8",
+    "axios": "^1.9.0",
+    "chart.js": "^4.4.9",
+    "dotenv": "^17.0.0",
+    "firebase": "^11.9.0",
+    "flag": "^5.0.1",
+    "framer-motion": "^12.12.1",
+    "js-cookie": "^3.0.5",
+    "leaflet": "^1.9.4",
+    "next": "^15.3.2",
+    "papaparse": "^5.5.3",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.3.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
+    "@types/leaflet": "^1.9.18",
+    "@types/node": "^20",
+    "@types/papaparse": "^5.3.16",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "15.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
