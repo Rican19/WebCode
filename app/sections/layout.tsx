@@ -36,9 +36,16 @@ export default function RootLayout({
           }}></div>
         </div>
 
-        <div className="relative z-10 flex w-full">
-          <SideNavbar />
-          {children}
+        <div className="relative z-10 w-full">
+          {/* Fixed sidebar - fixed sa left side */}
+          <div className="fixed top-0 left-0 h-full z-20">
+            <SideNavbar />
+          </div>
+
+          {/* Main content area - with left margin para sa sidebar */}
+          <div className="ml-80">
+            {children}
+          </div>
         </div>
       </div>
     </DiseaseDataProvider>

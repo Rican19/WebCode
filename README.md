@@ -58,6 +58,15 @@ The system provides real-time disease tracking, predictive analytics, and intera
 - **Predictive Analytics** with color-coded trend lines
 - **Geographic Heatmap** with Leaflet integration
 
+### 📱 SMS Notifications
+- **Automated SMS Alerts** sent every 4th CSV upload per municipality
+- **AI-Powered Analysis** with predictive insights sent via SMS
+- **Municipality-Specific Contacts**:
+  - Liloan: +639999592055
+  - Consolacion (Lacion): +639989497323
+  - Mandaue: +639321201855
+- **TextBee API Integration** for reliable SMS delivery
+
 ### 🎨 Professional UI/UX
 - Clean, modern design with consistent theming
 - Responsive layout for all devices
@@ -120,6 +129,14 @@ The system provides real-time disease tracking, predictive analytics, and intera
    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+   # TextBee SMS API Configuration
+   NEXT_PUBLIC_TEXTBEE_BASE_URL=https://api.textbee.dev/api/v1
+   NEXT_PUBLIC_TEXTBEE_API_KEY=your_textbee_api_key
+   NEXT_PUBLIC_TEXTBEE_DEVICE_ID=your_textbee_device_id
+
+   # OpenRouter AI API Configuration
+   NEXT_PUBLIC_OPENROUTER_API_KEY=your_openrouter_api_key
    ```
 
 4. **Run the development server**
@@ -260,6 +277,12 @@ Leptospirosis	8	Consolacion
 - Color-coded municipalities by case severity
 - Click on regions for detailed information
 - Statistics cards with real-time data
+
+### 6. SMS Notifications
+- **Automatic Upload Alerts**: SMS sent every 4th CSV upload per municipality
+- **AI Analysis Notifications**: Send AI-powered insights via SMS to all municipalities
+- **Manual SMS Triggers**: Use the AI Analysis modal to send custom analysis reports
+- **Municipality Contacts**: Each municipality has designated phone numbers for alerts
 
 ## 🔧 API Documentation
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useDiseaseData } from "../contexts/DiseaseDataContext";
 import { generateDiseaseAnalysisWithOpenRouter } from "../services/openRouterService";
+import { sendAIAnalysisSMS } from "../services/aiAnalysisService";
 
 interface AIAnalysisModalProps {
   isOpen: boolean;
@@ -16,11 +17,22 @@ interface AIAnalysisResult {
   error: string | null;
 }
 
+interface SMSState {
+  sending: boolean;
+  sent: boolean;
+  error: string | null;
+}
+
 export default function AIAnalysisModal({ isOpen, onClose }: AIAnalysisModalProps) {
-  const { processedData } = useDiseaseData();
+  const { processedData, rawData } = useDiseaseData();
   const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult>({
     analysis: "",
     loading: false,
+    error: null
+  });
+  const [smsState, setSmsState] = useState<SMSState>({
+    sending: false,
+    sent: false,
     error: null
   });
   const [mounted, setMounted] = useState(false);
@@ -115,6 +127,35 @@ export default function AIAnalysisModal({ isOpen, onClose }: AIAnalysisModalProp
         loading: false,
         error: "Failed to generate AI analysis. Please try again." // simple error message ra
       });
+    }
+  };
+
+  // function para mag send ug SMS notifications sa mga municipalities with proper AI analysis
+  const handleSendSMSNotifications = async () => {
+    if (!analysisResult.analysis) {
+      alert('Please generate AI analysis first before sending SMS notifications.');
+      return;
+    }
+
+    setSmsState({ sending: true, sent: false, error: null });
+
+    try {
+      console.log('🤖 AI Modal: Sending AI analysis SMS...');
+
+      // use the direct SMS function that generates fresh AI analysis - sophisticated pero simple lang
+      await sendAIAnalysisSMS();
+
+      setSmsState({ sending: false, sent: true, error: null });
+      alert('AI analysis SMS notifications sent successfully to all municipalities!');
+
+    } catch (error: any) {
+      console.error('Error sending AI analysis SMS notifications:', error);
+      setSmsState({
+        sending: false,
+        sent: false,
+        error: error.message || 'Failed to send AI analysis SMS notifications'
+      });
+      alert('Failed to send AI analysis SMS notifications. Please try again.');
     }
   };
 
@@ -601,19 +642,62 @@ Continue weekly monitoring, maintain alert thresholds, and prepare for seasonal 
               {/* Professional Analysis Display */}
               <AnalysisDisplay analysisData={JSON.parse(analysisResult.analysis)} />
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                <button
-                  onClick={handleRetry}
-                  className="px-4 py-2 text-[#143D60] border border-[#143D60] rounded-lg hover:bg-[#143D60] hover:text-white transition-colors"
-                >
-                  Regenerate Analysis
-                </button>
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 bg-[#143D60] text-white rounded-lg hover:bg-[#1e4a6b] transition-colors"
-                >
-                  Close
-                </button>
+              <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+                {/* SMS Status Display */}
+                <div className="flex items-center gap-2">
+                  {smsState.sent && (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm">SMS sent successfully</span>
+                    </div>
+                  )}
+                  {smsState.error && (
+                    <div className="flex items-center gap-2 text-red-600">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm">SMS failed</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSendSMSNotifications}
+                    disabled={smsState.sending}
+                    className="px-4 py-2 bg-[#A0C878] text-white rounded-lg hover:bg-[#8fb86a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {smsState.sending ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Sending SMS...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Send SMS Alerts
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleRetry}
+                    className="px-4 py-2 text-[#143D60] border border-[#143D60] rounded-lg hover:bg-[#143D60] hover:text-white transition-colors"
+                  >
+                    Regenerate Analysis
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 bg-[#143D60] text-white rounded-lg hover:bg-[#1e4a6b] transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -33,9 +33,12 @@ export default function UnifiedMunicipalityChart({
       // Get cases for this specific municipality (case-insensitive search)
       let municipalityCases = 0;
 
-      // Find the municipality with case-insensitive matching
+      // Find the municipality with normalized matching (handles Lilo-an/Liloan variations)
       Object.entries(diseaseData.municipalities).forEach(([municipality, cases]) => {
-        if (municipality.toLowerCase() === municipalityName.toLowerCase()) {
+        const normalizedStored = municipality.toLowerCase().replace('-', '');
+        const normalizedTarget = municipalityName.toLowerCase().replace('-', '');
+
+        if (normalizedStored === normalizedTarget) {
           municipalityCases += cases;
         }
       });
@@ -50,12 +53,14 @@ export default function UnifiedMunicipalityChart({
     const values = Object.values(municipalityDiseases);
 
     // Debug logging to help verify data filtering
-    console.log(`${municipalityName} chart data:`, municipalityDiseases);
-    console.log(`Available municipalities in data:`,
+    console.log(`🏙️ ${municipalityName} chart data:`, municipalityDiseases);
+    console.log(`🗺️ Available municipalities in data:`,
       Object.keys(processedData).length > 0 ?
         Object.keys(Object.values(processedData)[0].municipalities) :
         []
     );
+    console.log(`🔍 Looking for normalized: "${municipalityName.toLowerCase().replace('-', '')}"`);
+    console.log(`📊 Total cases found: ${Object.values(municipalityDiseases).reduce((sum, cases) => sum + cases, 0)}`);
 
     if (labels.length === 0) {
       return null;

@@ -36,9 +36,12 @@ export default function LiloanChart() {
         const data = snapshot.docs.map((doc) => doc.data());
         console.log(`Found ${data.length} records in centralized collection for Liloan chart`);
 
-        // filter lang para sa Municipality = "Lilo-an"
+        // filter lang para sa Municipality = "Lilo-an" or "Liloan" - handle both formats
         const filteredData = data.filter(
-          (item) => item.Municipality?.toLowerCase() === "lilo-an"
+          (item) => {
+            const municipality = item.Municipality?.toLowerCase().trim();
+            return municipality === "lilo-an" || municipality === "liloan";
+          }
         );
 
         console.log("Raw data:", data);

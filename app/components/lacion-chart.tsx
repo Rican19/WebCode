@@ -25,9 +25,12 @@ export default function LacionChart() {
       // kuha ang cases para sa Consolacion municipality (case-insensitive search)
       let consolacionCases = 0;
 
-      // find ang Consolacion municipality with case-insensitive matching
+      // find ang Consolacion municipality with normalized matching
       Object.entries(diseaseData.municipalities).forEach(([municipality, cases]) => {
-        if (municipality.toLowerCase() === "consolacion") {
+        const normalizedStored = municipality.toLowerCase().replace('-', '');
+        const normalizedTarget = "consolacion";
+
+        if (normalizedStored === normalizedTarget) {
           consolacionCases += cases;
         }
       });

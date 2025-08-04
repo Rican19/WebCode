@@ -8,6 +8,7 @@ import { Spinner } from "@heroui/react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../../../firebase";
 import Cookies from "js-cookie";
+import Image from "next/image";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -104,12 +105,15 @@ export default function Login() {
           <div className="max-w-lg text-center">
             {/* Logo and Brand - Logo ug brand name */}
             <div className="mb-12">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#143D60] rounded-2xl mb-6 shadow-lg">
-                {/* Medical Cross Icon - Medical cross icon gamit CSS */}
-                <div className="w-8 h-8 relative">
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-full"></div>
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-1 bg-white rounded-full"></div>
-                </div>
+              <div className="mb-6">
+                {/* HealthRadar Logo - Circular blended logo */}
+                <Image
+                  src="/assets/logoHDRM.png"
+                  alt="HealthRadar Logo"
+                  width={80}
+                  height={80}
+                  className="w-20 h-20 rounded-full object-cover mx-auto shadow-lg"
+                />
               </div>
 
               <h1 className="text-4xl font-bold text-[#143D60] mb-2 tracking-tight">

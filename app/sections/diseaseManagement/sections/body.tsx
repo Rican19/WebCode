@@ -26,6 +26,7 @@ import { getAuth } from "firebase/auth";
 import { useDiseaseData } from "../../../contexts/DiseaseDataContext";
 import NotificationModal from "../../../components/NotificationModal";
 import ConfirmationModal from "../../../components/ConfirmationModal";
+import { checkAndSendUploadSMS } from "../../../services/smsService";
 
 interface CsvData {
   [key: string]: string | number;
@@ -63,6 +64,14 @@ export default function Body() {
     municipalityDeleteLoading: false,
     globalDeleteLoading: false
   });
+
+  // pagination state para sa table records
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage] = useState(10); // 10 records per page
+
+
+
+
 
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const { refreshData } = useDiseaseData();
@@ -160,7 +169,11 @@ export default function Body() {
         return;
       }
 
-      if (recordMunicipality.toLowerCase() !== userMunicipality.toLowerCase()) {
+      // handle both "Lilo-an" and "Liloan" formats for backward compatibility
+      const normalizedRecord = recordMunicipality.toLowerCase().replace('-', '');
+      const normalizedUser = userMunicipality.toLowerCase().replace('-', '');
+
+      if (normalizedRecord !== normalizedUser) {
         console.warn(`❌ Record ${index + 1}: Municipality mismatch - Found: "${recordMunicipality}", Expected: "${userMunicipality}"`);
         invalidMunicipalities.add(recordMunicipality);
         invalidRecords.push(record);
@@ -283,13 +296,49 @@ export default function Body() {
         }
 
         try {
-          console.log("Starting global upload process for", parsedData.length, "records");
+          console.log("Starting BATCH upload process for", parsedData.length, "records");
 
           // initialize progress tracking
           setUploadProgress({
             current: 0,
-            total: parsedData.length,
-            message: "Starting upload..."
+            total: parsedData.length + 1, // +1 for batch calculation step
+            message: "Preparing batch upload..."
+          });
+
+          // STEP 1: Calculate next batch number for this municipality
+          console.log(`🔢 Calculating next batch number for municipality: ${userMunicipality}`);
+          setUploadProgress({
+            current: 0,
+            total: parsedData.length + 1,
+            message: `Calculating batch number for ${userMunicipality}...`
+          });
+
+          const centralizedRef = collection(db, "healthradarDB", "centralizedData", "allCases");
+          const existingSnapshot = await getDocs(query(centralizedRef));
+
+          // find highest batch number for this municipality
+          let highestBatchNumber = 0;
+          existingSnapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const recordMunicipality = data.Municipality?.toString().trim();
+
+            if (recordMunicipality && recordMunicipality.toLowerCase() === userMunicipality.toLowerCase()) {
+              const batchNumber = data.batchNumber || 0;
+              if (batchNumber > highestBatchNumber) {
+                highestBatchNumber = batchNumber;
+              }
+            }
+          });
+
+          const newBatchNumber = highestBatchNumber + 1;
+          console.log(`📊 Next batch number for ${userMunicipality}: ${newBatchNumber} (previous highest: ${highestBatchNumber})`);
+
+          // STEP 2: Upload new data with incremental batch number
+          console.log(`📤 Uploading ${parsedData.length} new records as batch ${newBatchNumber} for ${userMunicipality}`);
+          setUploadProgress({
+            current: 1,
+            total: parsedData.length + 1,
+            message: `Uploading batch ${newBatchNumber} data...`
           });
 
           // upload in smaller batches para dili ma overwhelm ang Firebase
@@ -306,11 +355,11 @@ export default function Body() {
 
             console.log(`Uploading batch ${batchNumber}/${totalBatches} (${batch.length} records)`);
 
-            // update progress
+            // update progress (account for batch calculation step)
             setUploadProgress({
-              current: i,
-              total: parsedData.length,
-              message: `Uploading batch ${batchNumber}/${totalBatches}...`
+              current: i + 1, // +1 for batch calculation step
+              total: parsedData.length + 1,
+              message: `Uploading batch ${batchNumber}/${totalBatches} (Municipality Batch #${newBatchNumber})...`
             });
 
             try {
@@ -331,8 +380,12 @@ export default function Body() {
                         uploadedByEmail: user.email,
                         uploadedByMunicipality: userMunicipality,
                         uploadedAt: new Date().toISOString(),
-                        batchNumber: batchNumber,
-                        recordIndex: i + index
+                        uploadBatchNumber: batchNumber, // original batch from processing
+                        recordIndex: i + index,
+                        // batch metadata
+                        batchNumber: newBatchNumber, // incremental batch number per municipality
+                        municipalityBatch: `${userMunicipality}-${newBatchNumber}`, // unique identifier
+                        isLatestBatch: true // mark as latest batch for this municipality
                       }
                     );
                     successCount++;
@@ -345,11 +398,11 @@ export default function Body() {
                 })
               );
 
-              // update progress after batch completion
+              // update progress after batch completion (account for batch calculation step)
               setUploadProgress({
-                current: Math.min(i + batchSize, parsedData.length),
-                total: parsedData.length,
-                message: `Completed batch ${batchNumber}/${totalBatches}`
+                current: Math.min(i + batchSize + 1, parsedData.length + 1), // +1 for batch calculation step
+                total: parsedData.length + 1,
+                message: `Completed batch ${batchNumber}/${totalBatches} (Municipality Batch #${newBatchNumber})`
               });
 
               // small delay between batches para hindi ma overwhelm ang Firebase
@@ -364,53 +417,56 @@ export default function Body() {
             }
           }
 
-          console.log(`Upload completed! Success: ${successCount}, Errors: ${errorCount}`);
+          console.log(`Batch upload completed! Success: ${successCount}, Errors: ${errorCount}, Batch: ${newBatchNumber}`);
 
-          // update final progress
+          // update final progress (account for batch calculation step)
           setUploadProgress({
-            current: parsedData.length,
-            total: parsedData.length,
-            message: errorCount > 0 ? `Completed with ${errorCount} errors` : "Upload completed successfully!"
+            current: parsedData.length + 1,
+            total: parsedData.length + 1,
+            message: errorCount > 0 ? `Batch ${newBatchNumber} upload completed with ${errorCount} errors` : `Batch ${newBatchNumber} upload completed successfully!`
           });
 
           if (errorCount > 0) {
             console.error("Upload errors:", errors);
             showNotification(
               'warning',
-              'Upload Completed with Errors',
-              `Upload completed with some issues. ${successCount} records were successfully uploaded, but ${errorCount} records failed.`,
+              'Batch Upload Completed with Errors',
+              `Batch ${newBatchNumber} upload completed with some issues. ${successCount} records were successfully uploaded, but ${errorCount} records failed.`,
               [
-                `✅ Successful uploads: ${successCount} records`,
+                `📊 Municipality Batch: ${newBatchNumber}`,
+                `✅ Successfully uploaded: ${successCount} records`,
                 `❌ Failed uploads: ${errorCount} records`,
-                'Check browser console for detailed error information',
-                'You may need to re-upload the failed records'
+                '📚 All batches preserved for tracking',
+                'Check browser console for detailed error information'
               ]
             );
           } else {
-            console.log("✅ ALL DISEASES UPLOADED SUCCESSFULLY!");
+            console.log("✅ BATCH UPLOAD COMPLETED SUCCESSFULLY!");
             console.log(`Municipality: ${userMunicipality}`);
             console.log(`Records uploaded: ${successCount}`);
+            console.log(`Batch Number: ${newBatchNumber}`);
             console.log(`User: ${user.email}`);
 
             showNotification(
               'success',
-              'Upload Successful! 🎉',
-              `Congratulations! All ${successCount} disease records from ${userMunicipality} have been successfully uploaded to the global database.`,
+              'New Batch Uploaded Successfully! 📊',
+              `Congratulations! Batch ${newBatchNumber} with ${successCount} disease records from ${userMunicipality} has been successfully uploaded.`,
               [
                 `🏘️ Municipality: ${userMunicipality}`,
-                `📊 Total records uploaded: ${successCount}`,
+                `📊 Batch Number: ${newBatchNumber}`,
+                `📈 Records uploaded: ${successCount}`,
                 `👤 Uploaded by: ${user.email}`,
-                '🌍 Data is now available globally to all users',
-                '📈 Charts and analytics have been updated'
+                '📚 All batches preserved for tracking',
+                '🌍 Data is now available globally to all users'
               ]
             );
           }
 
           // wait a bit before refreshing para ma ensure na na process na sa Firebase ang writes
           setUploadProgress({
-            current: parsedData.length,
-            total: parsedData.length,
-            message: "Processing data..."
+            current: parsedData.length + 1,
+            total: parsedData.length + 1,
+            message: "Processing batch data..."
           });
 
           console.log("Waiting for Firebase to process all writes...");
@@ -418,8 +474,8 @@ export default function Body() {
 
           // refresh both the data context (for charts) and table data
           setUploadProgress({
-            current: parsedData.length,
-            total: parsedData.length,
+            current: parsedData.length + 1,
+            total: parsedData.length + 1,
             message: "Refreshing display..."
           });
 
@@ -429,9 +485,9 @@ export default function Body() {
 
           // verify na na save jud ang data by checking the count
           setUploadProgress({
-            current: parsedData.length,
-            total: parsedData.length,
-            message: "Verifying saved data..."
+            current: parsedData.length + 1,
+            total: parsedData.length + 1,
+            message: "Verifying batch data..."
           });
 
           // wait a bit more and verify na na save ang data
@@ -468,6 +524,27 @@ export default function Body() {
             });
           }
 
+          // 📱 check if mag send na ug SMS after successful upload - automatic AI analysis ni
+          try {
+            console.log(`📱 UPLOAD PROCESS: Starting SMS check for municipality: ${userMunicipality}`);
+            console.log(`📱 UPLOAD PROCESS: Parsed data length: ${parsedData.length}`);
+            console.log(`📱 UPLOAD PROCESS: About to call checkAndSendUploadSMS...`);
+
+            await checkAndSendUploadSMS(userMunicipality, parsedData);
+
+            console.log(`📱 UPLOAD PROCESS: SMS check completed for ${userMunicipality}`);
+          } catch (smsError) {
+            console.error('❌ UPLOAD PROCESS: SMS notification error (non-critical):', smsError);
+            console.error('❌ UPLOAD PROCESS: SMS error details:', {
+              name: smsError instanceof Error ? smsError.name : 'Unknown',
+              message: smsError instanceof Error ? smsError.message : String(smsError),
+              stack: smsError instanceof Error ? smsError.stack : undefined
+            });
+            // SMS error is non-critical, di mag fail ang upload even if SMS fails
+          }
+
+
+
         } catch (error) {
           console.error("Critical error during upload process:", error);
           showNotification(
@@ -498,6 +575,30 @@ export default function Body() {
     });
   };
 
+  // pagination helper functions
+  const totalPages = Math.ceil(ArrayValues.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const currentRecords = ArrayValues.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
 
   // fetch global centralized data instead of user-specific data
   // para makita tanan users ang same data regardless of kung kinsa nag login
@@ -520,20 +621,36 @@ export default function Body() {
       );
 
       const querySnapshot = await getDocs(query(centralizedCasesRef));
-      console.log(`Found ${querySnapshot.docs.length} records in centralized collection for table display`);
+      console.log(`Found ${querySnapshot.docs.length} total records in centralized collection`);
 
       const fetchedData: CsvData[] = [];
+
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+
+        // include ALL records with batch numbers (no filtering)
         // remove metadata fields na gi add during upload
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { uploadedBy, uploadedByEmail, uploadedAt, ...cleanData } = data as CsvData & {
+        const { uploadedBy, uploadedByEmail, uploadedAt, uploadBatchNumber, batchNumber, municipalityBatch, isLatestBatch, ...cleanData } = data as CsvData & {
           uploadedBy?: string;
           uploadedByEmail?: string;
           uploadedAt?: string;
+          uploadBatchNumber?: number;
+          batchNumber?: number;
+          municipalityBatch?: string;
+          isLatestBatch?: boolean;
         };
-        fetchedData.push(cleanData);
+
+        // add batch info to the clean data for display
+        const dataWithBatch = {
+          ...cleanData,
+          BatchNumber: batchNumber || 'N/A' // show batch number in table
+        };
+
+        fetchedData.push(dataWithBatch);
       });
+
+      console.log(`Showing all ${fetchedData.length} records with batch numbers`);
 
       if (fetchedData.length > 0) {
         // get all unique keys from all documents para complete ang table headers
@@ -892,6 +1009,11 @@ export default function Body() {
     });
   }, [ArrayKeys, ArrayValues]);
 
+  // reset to page 1 when data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [ArrayValues]);
+
   return (
     <div className="flex-1 overflow-auto">
       {/* enhanced header section - enhanced header na nag-complement sa background */}
@@ -912,7 +1034,6 @@ export default function Body() {
         </div>
       </div>
 
-      {}
       <div className="p-6">
         {/* enhanced search and upload section - enhanced search section na nag-complement sa background */}
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg p-6 border border-white/30 mb-6 hover:shadow-xl transition-all duration-300">
@@ -969,9 +1090,13 @@ export default function Body() {
               >
                 {(deleteConfirmation.municipalityDeleteLoading || deleteConfirmation.globalDeleteLoading) ? "Deleting..." : "Delete CSV"}
               </Button>
+
+
             </div>
           </div>
         </div>
+
+
 
         {/* upload progress indicator */}
         {uploadProgress.total > 0 && (
@@ -1001,16 +1126,26 @@ export default function Body() {
         {/* enhanced data table section - enhanced data table na nag-complement sa background */}
         <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-white/30 hover:shadow-xl transition-all duration-300">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#A0C878] to-[#DDEB9D] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-[#143D60]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9a2 2 0 00-2 2v10z" />
-                </svg>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-[#A0C878] to-[#DDEB9D] rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-[#143D60]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9a2 2 0 00-2 2v10z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-[#143D60]">Disease Case Data</h3>
+                  <p className="text-sm text-gray-600">Uploaded CSV data overview</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-[#143D60]">Disease Case Data</h3>
-                <p className="text-sm text-gray-600">Uploaded CSV data overview</p>
-              </div>
+
+              {/* pagination info sa header */}
+              {ArrayValues.length > 0 && (
+                <div className="text-right">
+                  <p className="text-sm font-medium text-[#143D60]">{ArrayValues.length} Total Records</p>
+                  <p className="text-xs text-gray-500">{recordsPerPage} records per page</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1041,8 +1176,8 @@ export default function Body() {
                     ))}
                   </TableHeader>
                   <TableBody>
-                    {ArrayValues.map((row: CsvData, index: number) => (
-                      <TableRow key={index} className="hover:bg-gray-50">
+                    {currentRecords.map((row: CsvData, index: number) => (
+                      <TableRow key={startIndex + index} className="hover:bg-gray-50">
                         {ArrayKeys.map((key: string, idx: number) => (
                           <TableCell key={idx} className="text-center">
                             {row[key] || ""}
@@ -1076,10 +1211,65 @@ export default function Body() {
               </div>
             )}
           </div>
-        </div>
 
-        {    
-         }
+          {/* pagination controls - simple pagination para sa table records */}
+          {ArrayValues.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+              <div className="text-sm text-gray-600">
+                Showing {startIndex + 1} to {Math.min(endIndex, ArrayValues.length)} of {ArrayValues.length} records
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* previous button */}
+                <Button
+                  size="sm"
+                  variant="bordered"
+                  isDisabled={currentPage === 1}
+                  onPress={goToPreviousPage}
+                  className="border-gray-300 text-gray-700 hover:border-[#A0C878] disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </Button>
+
+                {/* page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      size="sm"
+                      variant={currentPage === page ? 'solid' : 'bordered'}
+                      onPress={() => goToPage(page)}
+                      className={
+                        currentPage === page
+                          ? 'bg-[#143D60] text-white min-w-[40px]'
+                          : 'border-gray-300 text-gray-700 hover:border-[#A0C878] min-w-[40px]'
+                      }
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* next button */}
+                <Button
+                  size="sm"
+                  variant="bordered"
+                  isDisabled={currentPage === totalPages}
+                  onPress={goToNextPage}
+                  className="border-gray-300 text-gray-700 hover:border-[#A0C878] disabled:opacity-50"
+                >
+                  Next
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
         <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
           <ModalContent>
             {(onClose) => (

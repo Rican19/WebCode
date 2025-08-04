@@ -4,7 +4,9 @@ import { Button } from "@heroui/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@heroui/react";
+import UserMunicipalityIndicator from "./UserMunicipalityIndicator";
 import Cookies from "js-cookie";
+import Image from "next/image";
 
 export default function SideNavbar() {
   const [loading, setLoading] = useState(false);
@@ -35,19 +37,25 @@ export default function SideNavbar() {
   };
 
   return (
-    <div className="w-80 bg-white shadow-2xl border-r border-gray-200 flex flex-col">
+    <div className="w-80 h-screen bg-white shadow-2xl border-r border-gray-200 flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-[#A0C878] to-[#DDEB9D] rounded-lg flex items-center justify-center">
-            <svg className="w-6 h-6 text-[#143D60]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
+        <div className="flex items-center gap-3 mb-4">
+          <Image
+            src="/assets/logoHDRM.png"
+            alt="HealthRadar Logo"
+            width={48}
+            height={48}
+            className="w-12 h-12 rounded-full object-cover shadow-md"
+          />
           <div>
             <h1 className="text-xl font-bold text-[#143D60]">HealthRadar</h1>
             <p className="text-sm text-gray-600">Disease Management</p>
           </div>
+        </div>
+        {/* municipality indicator sa sidebar - compact version */}
+        <div className="mt-3">
+          <UserMunicipalityIndicator />
         </div>
       </div>
 

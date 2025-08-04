@@ -3,6 +3,8 @@
 import UnifiedMunicipalityChart from "../../../components/unified-municipality-chart";
 import NewsBox from "../../../components/news-box";
 import PredictionChart from "../../../components/prediction-chart";
+
+import UserMunicipalityCard from "../../../components/UserMunicipalityCard";
 import { useState, useEffect } from "react";
 
 export default function Body() {
@@ -57,8 +59,8 @@ export default function Body() {
 
       {/* Main Content area - diri ang tanan nga charts ug data */}
       <div className="p-6 space-y-6">
-        {/* Stats Cards - gihimo nako static lang kay wala pa'y real data from backend */}
-        {/* pero nindot man ang design, murag professional dashboard jud */}
+        {/* Stats Cards - combination of static and dynamic cards */}
+        {/* naa na'y SMS tracking card para ma monitor ang AI notifications */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Total Cases card - Enhanced first card sa stats */}
           <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg p-6 border border-white/30 hover:shadow-xl transition-all duration-300">
@@ -94,23 +96,8 @@ export default function Body() {
             </div>
           </div>
 
-          {/* Municipalities card - Enhanced third ug last card */}
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg p-6 border border-white/30 hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Municipalities</p>
-                <p className="text-3xl font-bold text-[#143D60] mt-2">3</p> {/* 3 ra jud ang municipalities nato */}
-                <p className="text-sm text-blue-600 mt-1">Lilo-an, Mandaue, Consolacion</p> {/* list sa municipalities */}
-              </div>
-              {/* location icon - perfect para sa municipalities */}
-              <div className="w-12 h-12 bg-gradient-to-r from-[#143D60] to-[#1e4a6b] rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+          {/* User Municipality card - shows which municipality the user belongs to */}
+          <UserMunicipalityCard />
         </div>
 
         {/* Enhanced Charts Section - Enhanced charts na nag-complement sa background */}

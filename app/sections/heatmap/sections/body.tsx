@@ -1,58 +1,46 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAuth } from "firebase/auth";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/firebase";
+import { useDiseaseData } from "@/app/contexts/DiseaseDataContext";
 import "leaflet/dist/leaflet.css";
 
 export default function Body() {
+  const { processedData } = useDiseaseData();
   const [municipalityData, setMunicipalityData] = useState<
     Record<string, number>
   >({});
 
-  // Fetch and process global centralized case data
+  // 🗺️ Process Disease Distribution data for heatmap (connected to municipality charts)
   useEffect(() => {
-    const fetchCaseCounts = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) return;
+    console.log("🗺️ Heatmap useEffect triggered");
+    console.log("processedData:", processedData);
+    console.log("processedData keys:", Object.keys(processedData || {}));
 
-      try {
-        console.log("Fetching global centralized data for heatmap...");
+    if (!processedData || Object.keys(processedData).length === 0) {
+      console.log("❌ No processed data available for heatmap");
+      setMunicipalityData({});
+      return;
+    }
 
-        // Fetch from centralized collection that contains ALL municipality data
-        const centralizedCasesRef = collection(
-          db,
-          "healthradarDB",
-          "centralizedData",
-          "allCases"
-        );
+    console.log("✅ Processing Disease Distribution data for heatmap...");
 
-        const snapshot = await getDocs(centralizedCasesRef);
-        const data = snapshot.docs.map((doc) => doc.data());
-        console.log(`Found ${data.length} records in centralized collection for heatmap`);
+    // 📊 Calculate total cases per municipality from latest batch data
+    const municipalityMap: Record<string, number> = {};
 
-        const municipalityMap: Record<string, number> = {};
-        data.forEach((item) => {
-          const muni = item.Municipality;
-          const count = parseInt(item.CaseCount, 10);
-          if (muni && !isNaN(count)) {
-            const key = muni.toLowerCase();
-            municipalityMap[key] = (municipalityMap[key] || 0) + count;
-          }
-        });
+    Object.entries(processedData).forEach(([diseaseName, diseaseData]) => {
+      console.log(`Processing disease: ${diseaseName}`, diseaseData);
+      Object.entries(diseaseData.municipalities).forEach(([municipality, cases]) => {
+        // 🔧 Normalize municipality names (remove hyphens for consistent matching)
+        const normalizedKey = municipality.toLowerCase().replace('-', '');
+        console.log(`  Municipality: ${municipality} -> ${normalizedKey}, Cases: ${cases}`);
+        municipalityMap[normalizedKey] = (municipalityMap[normalizedKey] || 0) + cases;
+      });
+    });
 
-        setMunicipalityData(municipalityMap);
-        console.log("Successfully loaded global data for heatmap");
-      } catch (error) {
-        console.error("Error fetching global centralized data for heatmap:", error);
-        setMunicipalityData({});
-      }
-    };
-
-    fetchCaseCounts();
-  }, []);
+    console.log("🎯 Final municipality case counts for heatmap:", municipalityMap);
+    console.log("🔑 Available municipality keys:", Object.keys(municipalityMap));
+    setMunicipalityData(municipalityMap);
+  }, [processedData]);
 
   // Load and render map
   useEffect(() => {
@@ -70,16 +58,21 @@ export default function Body() {
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
 
+    // 🎨 Updated color thresholds: Low (0-150), Medium (151-500), High (501+)
     const getColor = (count: number) =>
-      count > 70
-        ? "#800026"
-        : count > 50
-        ? "#BD0026"
-        : count > 30
-        ? "#E31A1C"
-        : count > 10
-        ? "#FC4E2A"
-        : "#FED976";
+      count >= 501
+        ? "#DC2626"    // High - Red (501+ cases)
+        : count >= 151
+        ? "#F59E0B"    // Medium - Amber (151-500 cases)
+        : count >= 1
+        ? "#10B981"    // Low - Green (1-150 cases)
+        : "#E5E7EB";   // No cases - Light Gray
+
+    // 🐛 Debug logging for heatmap data connection
+    console.log("Heatmap municipalityData:", municipalityData);
+    console.log("Looking for Mandaue:", municipalityData["mandaue"]);
+    console.log("Looking for Liloan (normalized):", municipalityData["liloan"]);
+    console.log("Looking for Consolacion:", municipalityData["consolacion"]);
 
     const featuredMunicipalities: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
@@ -88,7 +81,7 @@ export default function Body() {
           type: "Feature",
           properties: {
             name: "Mandaue City",
-            caseCount: municipalityData["mandaue city"] || 0,
+            caseCount: municipalityData["mandaue"] || 0,
           },
           geometry: {
             type: "Polygon",
@@ -107,7 +100,7 @@ export default function Body() {
           type: "Feature",
           properties: {
             name: "Lilo-an",
-            caseCount: municipalityData["lilo-an"] || 0,
+            caseCount: municipalityData["liloan"] || 0,
           },
           geometry: {
             type: "Polygon",
@@ -202,20 +195,20 @@ export default function Body() {
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend - Updated thresholds connected to Disease Distribution */}
               <div className="flex items-center gap-4">
                 <div className="text-xs text-gray-600">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-4 h-4 bg-green-200 rounded"></div>
-                    <span>Low (0-10 cases)</span>
+                    <div className="w-4 h-4 bg-emerald-500 rounded"></div>
+                    <span>Low (1-150 cases)</span>
                   </div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-4 h-4 bg-yellow-300 rounded"></div>
-                    <span>Medium (11-25 cases)</span>
+                    <div className="w-4 h-4 bg-amber-500 rounded"></div>
+                    <span>Medium (151-500 cases)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-red-400 rounded"></div>
-                    <span>High (26+ cases)</span>
+                    <div className="w-4 h-4 bg-red-600 rounded"></div>
+                    <span>High (501+ cases)</span>
                   </div>
                 </div>
               </div>

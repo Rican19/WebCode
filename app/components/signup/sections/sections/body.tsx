@@ -9,7 +9,7 @@ import { auth, db } from "@/firebase";
 import { doc, setDoc } from "firebase/firestore";
 
 export const Municipalities = [
-  { key: "Liloan", value: "Liloan" },
+  { key: "Lilo-an", value: "Lilo-an" },
   { key: "Mandaue", value: "Mandaue" },
   { key: "Consolacion", value: "Consolacion" },
 ];

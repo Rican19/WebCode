@@ -25,6 +25,7 @@ export interface DiseaseData {
   DiseaseName: string;
   CaseCount: string;
   Date?: string;
+  batchNumber?: number;
 }
 
 export interface ProcessedDiseaseData {
@@ -61,34 +62,56 @@ export const DiseaseDataProvider: React.FC<DiseaseDataProviderProps> = ({ childr
   const [processedData, setProcessedData] = useState<ProcessedDiseaseData>({});
   const [loading, setLoading] = useState(true);
 
-  const processRawData = (data: DiseaseData[]): ProcessedDiseaseData => {
+  const processRawData = (data: (DiseaseData & { batchNumber?: number })[]): ProcessedDiseaseData => {
     const processed: ProcessedDiseaseData = {};
 
-    // agi ra ni, process ang data para ma organize - medyo messy ang CSV data gud
+    // 🎯 Filter to only show latest batch data per municipality
+    // First, find the highest batch number for each municipality
+    const latestBatchPerMunicipality: { [municipality: string]: number } = {};
+
+    data.forEach((item) => {
+      const municipality = item.Municipality?.trim();
+      const batchNumber = item.batchNumber || 0;
+
+      if (municipality) {
+        if (!latestBatchPerMunicipality[municipality] || batchNumber > latestBatchPerMunicipality[municipality]) {
+          latestBatchPerMunicipality[municipality] = batchNumber;
+        }
+      }
+    });
+
+    console.log('Latest batch per municipality:', latestBatchPerMunicipality);
+
+    // 📊 Now process only records from the latest batch for each municipality
     data.forEach((item) => {
       const diseaseName = item.DiseaseName?.toLowerCase().trim();
       const municipality = item.Municipality?.trim();
       const caseCount = parseInt(item.CaseCount, 10);
+      const batchNumber = item.batchNumber || 0;
 
       // check lang if valid ang data, basin naa'y empty cells sa CSV
       if (diseaseName && municipality && !isNaN(caseCount) && caseCount > 0) {
-        // first time makita ni nga disease? create new entry
-        if (!processed[diseaseName]) {
-          processed[diseaseName] = {
-            totalCases: 0,
-            municipalities: {},
-            // kuha ang color from mapping, if wala default gray nalang
-            color: DISEASE_COLORS[diseaseName as keyof typeof DISEASE_COLORS] || '#6B7280'
-          };
-        }
+        // 🔍 Only include records from the latest batch for this municipality
+        if (batchNumber === latestBatchPerMunicipality[municipality]) {
+          // first time makita ni nga disease? create new entry
+          if (!processed[diseaseName]) {
+            processed[diseaseName] = {
+              totalCases: 0,
+              municipalities: {},
+              // kuha ang color from mapping, if wala default gray nalang
+              color: DISEASE_COLORS[diseaseName as keyof typeof DISEASE_COLORS] || '#6B7280'
+            };
+          }
 
-        // add sa total count ug per municipality count
-        processed[diseaseName].totalCases += caseCount;
-        processed[diseaseName].municipalities[municipality] =
-          (processed[diseaseName].municipalities[municipality] || 0) + caseCount;
+          // add sa total count ug per municipality count (latest batch only)
+          processed[diseaseName].totalCases += caseCount;
+          processed[diseaseName].municipalities[municipality] =
+            (processed[diseaseName].municipalities[municipality] || 0) + caseCount;
+        }
       }
     });
 
+    console.log('Processed data (latest batch only):', processed);
     return processed;
   };
 
@@ -139,14 +162,17 @@ export const DiseaseDataProvider: React.FC<DiseaseDataProviderProps> = ({ childr
       );
 
       const snapshot = await getDocs(centralizedCasesRef);
-      const data = snapshot.docs.map((doc) => doc.data() as DiseaseData);
+      const allData = snapshot.docs.map((doc) => doc.data() as DiseaseData & { batchNumber?: number });
 
-      console.log('Centralized records found:', data.length);
+      console.log('Total centralized records found:', allData.length);
 
-      if (data.length > 0) {
-        setRawData(data);
-        setProcessedData(processRawData(data));
-        console.log('Using centralized data for charts');
+      // use ALL records with batch numbers for charts (no filtering)
+      console.log(`Using all ${allData.length} records with batch numbers for charts`);
+
+      if (allData.length > 0) {
+        setRawData(allData);
+        setProcessedData(processRawData(allData));
+        console.log('Using all centralized data with batch numbers for charts');
         return; // exit early if naa na centralized data
       } else {
         console.log('Centralized collection empty, falling back to user data...');
